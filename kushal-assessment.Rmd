@@ -1,5 +1,5 @@
 ---
-title: 'Data Scientist (ID: 75523) Assessment'
+title: 'Alberta Insurance Study'
 author: "Kushal Adhvaryu"
 date: "2025-10-17"
 output: pdf_document
@@ -7,7 +7,7 @@ knit: (function(inputFile, encoding) {
     out_dir <- "./"  ;
     rmarkdown::render(inputFile,
       encoding=encoding,
-      output_file=file.path(dirname(inputFile), out_dir, 'Kushal Adhvaryu - DS Assessment.pdf'))})
+      output_file=file.path(dirname(inputFile), out_dir, 'Kushal Adhvaryu - Alberta Insurance Study.pdf'))})
 ---
 
 \newpage

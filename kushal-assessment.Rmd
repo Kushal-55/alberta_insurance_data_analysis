@@ -14,7 +14,7 @@ knit: (function(inputFile, encoding) {
 
 ## R - Insurance Data
 
-1. Load any packages you require to complete this assessment. 
+1. Load any packages you require to complete this study. 
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 options(scipen=100000, digits=6, warn=-1)
@@ -195,7 +195,7 @@ panel.grid.major = element_line()
 print(premium_plot)
 ```
 
-5. Create and display a graphic and use it to "tell a story." The audience is a high-ranking government official that needs to quickly understand what you're saying, why it's important, and if action should or needs to be taken. Assume that these data points represent the entire Alberta auto insurance market. You can focus on any aspect of the data, and utilize any type of graphic to tell your story. 
+5. Create and display a graphic and use it to "tell a story." The audience is a high-ranking official that needs to quickly understand what you're saying, why it's important, and if action should or needs to be taken. Assume that these data points represent the entire Alberta auto insurance market. You can focus on any aspect of the data, and utilize any type of graphic to tell your story. 
 
 ```{r, echo=TRUE, fig.width=8, fig.height=6}
 

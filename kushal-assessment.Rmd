@@ -1,0 +1,410 @@
+---
+title: 'Data Scientist (ID: 75523) Assessment'
+author: "Kushal Adhvaryu"
+date: "2025-10-17"
+output: pdf_document
+knit: (function(inputFile, encoding) {
+    out_dir <- "./"  ;
+    rmarkdown::render(inputFile,
+      encoding=encoding,
+      output_file=file.path(dirname(inputFile), out_dir, 'Kushal Adhvaryu - DS Assessment.pdf'))})
+---
+
+\newpage
+
+## R - Insurance Data
+
+1. Load any packages you require to complete this assessment. 
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+options(scipen=100000, digits=6, warn=-1)
+
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(lubridate)
+library(knitr)
+library(scales)
+library(tidyr)
+```
+
+2. Load in the data file attached in the email called "Sample Data.csv" and display the first six rows. This data comes from two real insurance groups that operate in Alberta, with their names obscured. 
+
+```{r, echo=TRUE}
+# Load the dataset
+data <- read_csv("/content/drive/MyDrive/GOMA_Assessment/Sample Data.csv")
+
+# Display first six rows
+head(data)
+```
+
+3. a) Display the total premium and total vehicles by company, and their group, for all periods (IE don't group on time), but only for Private Passenger Vehicles (PPV). Order the output by group premiums descending, and company premiums descending. 
+
+```{r, echo=TRUE}
+# Filter for Private Passenger Vehicles (PPV) only
+ppv_data <- data %>%
+  filter(VehicleType == "PPV")
+
+# Calculate totals by company and group
+company_group_totals <- ppv_data %>%
+  group_by(Company, InsuranceGroup) %>%
+  summarise(
+    TotalPremium = sum(Premium, na.rm = TRUE),
+    TotalVehicles = sum(Vehicles, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Calculate group totals for ordering
+group_totals <- ppv_data %>%
+  group_by(InsuranceGroup) %>%
+  summarise(GroupPremium = sum(Premium, na.rm = TRUE), 
+            .groups = 'drop')
+
+# Merge and order by group premiums descending, 
+# then company premiums descending
+results_1 <- company_group_totals %>%
+  left_join(group_totals, by = "InsuranceGroup") %>%
+  arrange(desc(GroupPremium), desc(TotalPremium))
+
+# Display results
+print(results_1)
+# Formatting for better display
+results_1_formatted <- results_1 %>%
+  mutate(
+    TotalPremium = scales::dollar(TotalPremium, scale = 1e-6, suffix = "M"),
+    TotalVehicles = scales::comma(TotalVehicles, accuracy = 1),
+    GroupPremium = scales::dollar(GroupPremium, scale = 1e-6, suffix = "M")
+  )
+print("Total Premium and Vehicles by Company and Group (Only for PPV):")
+print(results_1_formatted)
+```
+
+b) Calculate market share for each company, and group, based on premiums, again not grouping on time and also for PPV only. Do the same for vehicles and display the results. 
+
+```{r, echo=TRUE}
+# Calculate total market values for PPV
+total_premium_ppv <- sum(ppv_data$Premium, na.rm = TRUE)
+total_vehicles_ppv <- sum(ppv_data$Vehicles, na.rm = TRUE)
+
+cat("Total PPV Market - Premium:", scales::dollar(total_premium_ppv), "\n")
+cat("Total PPV Market - Vehicles:", scales::comma(total_vehicles_ppv), "\n")
+
+# Calculate market share by company
+company_market_share <- company_group_totals %>%
+  mutate(
+    PremiumMarketShare = round((TotalPremium / total_premium_ppv) * 100, 2),
+    VehicleMarketShare = round((TotalVehicles / total_vehicles_ppv) * 100, 2)
+  ) %>%
+  arrange(desc(PremiumMarketShare)) %>%
+  select(Company, InsuranceGroup, PremiumMarketShare, VehicleMarketShare)
+
+print("Company Market Share (PPV only):")
+print(company_market_share)
+
+# Calculate market share by group
+group_market_share <- ppv_data %>%
+  group_by(InsuranceGroup) %>%
+  summarise(
+    TotalPremium = sum(Premium, na.rm = TRUE),
+    TotalVehicles = sum(Vehicles, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    PremiumMarketShare = round((TotalPremium / total_premium_ppv) * 100, 2),
+    VehicleMarketShare = round((TotalVehicles / total_vehicles_ppv) * 100, 2)
+  ) %>%
+  select(InsuranceGroup, PremiumMarketShare, VehicleMarketShare)
+
+print("Group Market Share (PPV only):")
+print(group_market_share)
+```
+
+c) Explain why premium and vehicle market shares differ, and where you think each would be useful. 
+
+```
+Premium and vehicle market shares differ for the following reasons:
+
+By analyzing the dataset I found that:
+- Different companies charge different average premiums per vehicle
+- Pricing for premiums varies by location 
+
+Other reasons that matter:
+- Vehicle types and values vary across company portfolios
+- Customer demographics such as high-risk and low-risk drivers 
+  affect pricing
+
+Where each metric is useful:
+- Premium market share can be used for better understanding of revenue dominance 
+financial impact and economic concentration
+- Vehicle Market Share can be used for understanding customer reach, 
+market penetration, and coverage of service
+```
+
+4. Calculate the average premium per vehicle, **per year**, for company 5's commercial vehicles for all years in the data. Create a graphic that plots this. 
+
+```{r, echo=TRUE}
+
+# Filter for Company 5 commercial vehicles
+company5_commercial <- data %>%
+  filter(Company == "Company 5", VehicleType == "Commercial") %>%
+  mutate(Year = year(as.Date(Date)))
+
+# Calculate average premium per vehicle per year
+yearly_analysis <- company5_commercial %>%
+  group_by(Year) %>%
+  summarise(
+    TotalPremium = sum(Premium, na.rm = TRUE),
+    TotalVehicles = sum(Vehicles, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  filter(TotalVehicles > 0) %>%
+  mutate(AvgPremiumPerVehicle = TotalPremium / TotalVehicles) %>%
+  arrange(Year)
+
+print("Company 5 Commercial Vehicles - Average Premium per Vehicle by Year:")
+print(yearly_analysis)
+
+# visualization
+premium_plot <- ggplot(yearly_analysis, aes(x = Year, y = AvgPremiumPerVehicle)) +
+geom_line(color = "lightblue", size = 1.5, alpha = 0.8) +
+geom_point(color = "darkred", size = 3, alpha = 0.9) +
+geom_smooth(method = "lm", se = TRUE, color = "yellow", linetype = "dashed", alpha = 0.3) +
+scale_y_continuous(labels = scales::dollar_format()) +
+scale_x_continuous(breaks = yearly_analysis$Year) +
+labs(
+title = "Company 5 Commercial Vehicles: Average Premium per Vehicle by Year",
+subtitle = paste("Trend shows",
+scales::percent((max(yearly_analysis$AvgPremiumPerVehicle) -
+min(yearly_analysis$AvgPremiumPerVehicle)) /
+min(yearly_analysis$AvgPremiumPerVehicle)),
+"increase from", min(yearly_analysis$Year), "to", max(yearly_analysis$Year)),
+x = "Year",
+y = "Average Premium per Vehicle",
+caption = "Trend line shows linear regression"
+) +
+theme_minimal() +
+theme(
+plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray30"),
+axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+axis.text.y = element_text(size = 10),
+panel.grid.minor = element_blank(),
+panel.grid.major = element_line()
+)
+
+print(premium_plot)
+```
+
+5. Create and display a graphic and use it to "tell a story." The audience is a high-ranking government official that needs to quickly understand what you're saying, why it's important, and if action should or needs to be taken. Assume that these data points represent the entire Alberta auto insurance market. You can focus on any aspect of the data, and utilize any type of graphic to tell your story. 
+
+```{r, echo=TRUE, fig.width=8, fig.height=6}
+
+# Define string concatenation operator %&%
+`%&%` <- function(x, y) paste0(x, y)
+
+# Analyze overall market concentration
+total_market_analysis <- data %>%
+  group_by(Company, InsuranceGroup) %>%
+  summarise(TotalPremium = sum(Premium, na.rm = TRUE), .groups = 'drop') %>%
+  mutate(MarketShare = (TotalPremium / sum(TotalPremium)) * 100) %>%
+  arrange(desc(MarketShare))
+
+# Create presentation chart
+gov_chart <- ggplot(total_market_analysis, aes(x = reorder(Company, MarketShare), 
+y = MarketShare)) +
+  geom_col(aes(fill = ifelse(MarketShare > 25, "Dominant", "Other")), 
+width = 0.8, alpha = 0.9) +
+  scale_fill_manual(values = c("Dominant" = "darkred", "Other" = "steelblue"), 
+guide = "none") +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+expand = c(0, 0), 
+limits = c(0, max(total_market_analysis$MarketShare) * 1.1)) +
+  labs(
+    title = "ALBERTA AUTO INSURANCE MARKET CONCENTRATION",
+    subtitle = "Regulatory Intervention Required! - Market Dominance Crisis",
+    x = "Insurance Company",
+    y = "Market Share (%)",
+    caption = paste("Top 2 companies control",
+                   scales::percent(sum(head(total_market_analysis$MarketShare, 2))/100, 
+accuracy = 0.1),
+                   "of Alberta's auto insurance market")
+  ) +
+  geom_text(aes(label = paste0(round(MarketShare, 1), "%")),
+            hjust = ifelse(total_market_analysis$MarketShare > 10, 1.1, -0.1),
+            size = 3.5, fontface = "bold",
+            color = ifelse(total_market_analysis$MarketShare > 10, "white", "black")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", color = "red", hjust = 0.5),
+    plot.subtitle = element_text(size = 13, face = "bold", hjust = 0.5, color = "red"),
+    plot.caption = element_text(size = 11, face = "bold", color = "gray30"),
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 12, face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+
+print(gov_chart)
+```
+
+**Market Concentration Analysis**
+
+Key Findings:
+
+- Top 2 companies control 71.8% of the market
+- Top 3 companies control 82.8% of the market
+- Market leaders: Company 5 (45.2%) and Company 2 (26.7%)
+
+Recommended Actions:
+
+- Implement market share monitoring
+- Review pricing practices of dominant players
+- Consider policies to facilitate new market entrants
+- Enhance consumer protection measures
+- Monitor for anti-competitive behavior
+
+\newpage
+
+## SQL
+
+For this section, please try to use the syntax/commands used in Microsoft SQL Server. If you do not, please specify what SQL language you're using. Don't worry about small syntax changes or errors, we're interested in your overall approach. 
+
+1. a) You have a fact table named `FactClaims`, with the following columns: `claim_id`, `customer_id`, `claim_date`, `claim_amount`, `vehicle_id`, and `claim_status`. Write a query to find the top 10 customers by total `claim_amount`, where the status is "Paid", and the claim date is in the past year. 
+
+```sql
+SELECT TOP 10 
+customer_id,
+SUM(claim_amount) AS total_claim_amount,
+COUNT(*) AS number_of_claims
+FROM FactClaims
+WHERE claim_status = 'Paid'
+AND claim_date >= DATEADD(YEAR, -1, GETDATE())
+GROUP BY customer_id
+ORDER BY total_claim_amount DESC;
+```
+
+b) Alter this query to find the top 10 customers with the highest **average claim severity**. Claim severity is defined as total `claim_amount` divided by total claims. 
+
+```sql
+SELECT TOP 10 
+customer_id,
+SUM(claim_amount) AS total_claim_amount,
+COUNT(*) AS total_claims,
+ROUND(SUM(claim_amount) / CAST(COUNT(*) AS FLOAT), 2) AS claim_severity
+FROM FactClaims
+WHERE claim_status = 'Paid'
+AND claim_date >= DATEADD(YEAR, -1, GETDATE())
+GROUP BY customer_id
+HAVING COUNT(*) > 0  
+ORDER BY claim_severity DESC;
+```
+
+2. You have a dimension table called `DimVehicleClass` that has columns `vehicle_id` and `vehicle_type`. You have the fact table called `FactClaims` from question 1. Write two queries to find the `vehicle_type` that has the most claims. The only output of the query that matters is the vehicle type. 
+
+a) For this version of the query, use a **subquery**.
+
+```sql
+SELECT vehicle_type
+FROM DimVehicleClass
+WHERE vehicle_id = (
+SELECT TOP 1 vehicle_id
+FROM (
+SELECT vehicle_id, COUNT(*) as claim_count
+FROM FactClaims
+GROUP BY vehicle_id
+) AS vehicle_claims
+ORDER BY claim_count DESC
+);
+```
+
+b) For this version of the query, use a **join**.
+
+```sql
+SELECT TOP 1 dvc.vehicle_type
+FROM FactClaims fc
+INNER JOIN DimVehicleClass dvc ON fc.vehicle_id = dvc.vehicle_id
+GROUP BY dvc.vehicle_type, dvc.vehicle_id
+ORDER BY COUNT(*) DESC;
+```
+
+c) Which type of query is more efficient? What other factors should be considered when writing a query?
+
+```
+The JOIN query is generally more efficient than the subquery 
+because:
+* Joins have single pass processing and process the data in one operation, 
+subqueries may require multiple passes
+* Joins can better utilize indexes on both tables 
+* Joins have more optimization techniques (merge joins, 
+hash joins etc) whereas subqueries limit optimization options
+
+The factors to be considered while writing queries:
+* Joins should be preferred for large datasets
+* Proper indexing should be applied on join columns
+* Subqueries can be used to apply complex logic
+* CTEs should be used where necessary
+* Only query fields that are needed
+```
+
+3. a) Using the information from question 1, write a query to calculate a 30-day moving average of daily claim amounts. Store the result into a temporary table.
+
+```sql
+WITH DailyClaims AS (
+SELECT 
+CAST(claim_date AS DATE) as claim_day,
+SUM(claim_amount) as daily_claim_amount
+FROM FactClaims
+WHERE claim_status = 'Paid'
+AND claim_date >= DATEADD(YEAR, -1, GETDATE())
+GROUP BY CAST(claim_date AS DATE)
+),
+MovingAverages AS (
+SELECT 
+claim_day,
+daily_claim_amount,
+AVG(CAST(daily_claim_amount AS FLOAT)) OVER (
+ORDER BY claim_day 
+ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
+) as moving_avg_30day,
+COUNT(*) OVER (
+ORDER BY claim_day 
+ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
+) as days_in_window
+FROM DailyClaims
+)
+SELECT 
+claim_day,
+daily_claim_amount,
+ROUND(moving_avg_30day, 2) as moving_avg_30day,
+days_in_window
+INTO #TempMovingAverage
+FROM MovingAverages
+ORDER BY claim_day;
+```
+
+b) Using the results of your temporary table from part a, create a ranking in descending order for the 30 day moving averages. 
+
+```sql
+WITH RankedMovingAverages AS (
+    SELECT 
+        claim_day,
+        daily_claim_amount,
+        moving_avg_30day,
+        days_in_window,
+        RANK() OVER (ORDER BY moving_avg_30day DESC) as standard_rank,
+        PERCENT_RANK() OVER (ORDER BY moving_avg_30day DESC) as percentile_rank
+    FROM #TempMovingAverage
+    WHERE days_in_window = 30  -- Only include periods with full 30-day window
+)
+SELECT 
+    standard_rank,
+    claim_day,
+    daily_claim_amount,
+    percentile_rank,
+    moving_avg_30day
+FROM RankedMovingAverages
+ORDER BY moving_avg_30day DESC;
+```
